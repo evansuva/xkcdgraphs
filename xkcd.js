@@ -1,19 +1,51 @@
 // Original Author: Dan Foreman-Mackey http://dan.iel.fm/xkcd/
 // Customized by: Kevin Xu https://github.com/imkevinxu
 
+var m_w = 123456789;
+var m_z = 987654321;
+var mask = 0xffffffff;
+
+// Takes any integer
+function badSeed(i) {
+    m_w = (123456789 + i) & mask;
+    m_z = (987654321 - i) & mask;
+}
+
+// Returns number between 0 (inclusive) and 1.0 (exclusive),
+// just like Math.random().
+function badRandom()
+{
+    m_z = (36969 * (m_z & 65535) + (m_z >> 16)) & mask;
+    m_w = (18000 * (m_w & 65535) + (m_w >> 16)) & mask;
+    var result = ((m_z << 16) + (m_w & 65535)) >>> 0;
+    result /= 4294967296;
+    return result;
+}
+
+function badNormal()
+{
+    var u = 0, v = 0;
+    while(u === 0) u = badRandom(); //Converting [0,1) to (0,1)
+    while(v === 0) v = badRandom();
+    let num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return num
+}
+
+
+
 function xkcdplot() {
 
     // Default parameters.
-    var width = 600,
-        height = 300,
+    var width = 800,
+        height = 450,
         margin = 20,
         arrowSize = 12,
         arrowAspect = 0.4,
         arrowOffset = 6,
         magnitude = 0.003,
-        xlabel = "Time of Day",
-        ylabel = "Awesomeness",
-        title = "The Awesome Graph",
+        xlabel = "",
+        ylabel = "",
+        title = "",
         xlim,
         ylim;
 
@@ -27,7 +59,10 @@ function xkcdplot() {
 
     // The XKCD object itself.
     var xkcd = function (nm, param) {
+
+
         el = d3.select(nm).append("svg")
+                    .attr("id", "xplot")
                     .attr("width", width + 2 * margin)
                     .attr("height", height + 2 * margin)
                 .append("g")
@@ -60,10 +95,11 @@ function xkcdplot() {
         el.selectAll(".axis").remove();
         el.append("svg:path")
             .attr("class", "x axis")
-            .attr("d", axis([[0, y0], [width, y0]]));
-        el.append("svg:path")
-            .attr("class", "y axis")
-            .attr("d", axis([[x0, 0], [x0, height]]));
+            .attr("d", axis([[0, y0], [width, y0]])); //! don't know how to fix starting location
+
+//        el.append("svg:path")
+//            .attr("class", "y axis")
+//            .attr("d", axis([[x0, 0], [x0, height]]));
 
         // Laboriously draw some arrows at the ends of the axes.
         var aa = arrowAspect * arrowSize,
@@ -72,15 +108,17 @@ function xkcdplot() {
         el.append("svg:path")
             .attr("class", "x axis arrow")
             .attr("d", axis([[width - s + o, y0 + aa], [width + o, y0], [width - s + o, y0 - aa]]));
-        el.append("svg:path")
-            .attr("class", "x axis arrow")
-            .attr("d", axis([[s - o, y0 + aa], [-o, y0], [s - o, y0 - aa]]));
-        el.append("svg:path")
-            .attr("class", "y axis arrow")
-            .attr("d", axis([[x0 + aa, s - o], [x0, -o], [x0 - aa, s - o]]));
-        el.append("svg:path")
-            .attr("class", "y axis arrow")
-            .attr("d", axis([[x0 + aa, height - s + o], [x0, height + o], [x0 - aa, height - s + o]]));
+
+
+//        el.append("svg:path")
+//            .attr("class", "x axis arrow")
+ //           .attr("d", axis([[s - o, y0 + aa], [-o, y0], [s - o, y0 - aa]]));
+//        el.append("svg:path")
+ //           .attr("class", "y axis arrow")
+  //          .attr("d", axis([[x0 + aa, s - o], [x0, -o], [x0 - aa, s - o]]));
+//        el.append("svg:path")
+//            .attr("class", "y axis arrow")
+//            .attr("d", axis([[x0 + aa, height - s + o], [x0, height + o], [x0 - aa, height - s + o]]));
 
         for (var i = 0, l = elements.length; i < l; ++i) {
             var e = elements[i];
@@ -91,15 +129,19 @@ function xkcdplot() {
         el.append("text").attr("class", "x label")
                               .attr("text-anchor", "end")
                               .attr("x", width - s)
-                              .attr("y", y0 + aa)
+                              .attr("y", y0 + aa + 10)
                               .attr("dy", ".75em")
+	                      .attr("font-family", "Helvetica")
+	                      .attr("font-size", "30px")
                               .text(xlabel);
         el.append("text").attr("class", "y label")
                               .attr("text-anchor", "end")
-                              .attr("x", aa)
-                              .attr("y", x0)
+                              .attr("x", width - (2 * aa))
+                              .attr("y", x0+30)
+	                      .attr("font-family", "Helvetica")
+	                      .attr("font-size", "30px")
                               .attr("dy", "-.75em")
-                              .attr("transform", "rotate(-90)")
+            // .attr("transform", "rotate(-90)")
                               .text(ylabel);
 
         // Insert H1 title
@@ -208,7 +250,9 @@ function xkcdplot() {
         });
 
         // Generate some perturbations.
-        var perturbations = smooth(resampled.map(d3.random.normal()), 3);
+        // var perturbations = smooth(resampled.map(d3.random.normal()), 3);
+	badSeed(31);
+	var perturbations = smooth(resampled.map(badNormal), 3);
 
         // Add in the perturbations and re-scale the re-sampled curve.
         var result = resampled.map(function (d, i) {
